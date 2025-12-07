@@ -289,6 +289,16 @@ void WMIdentify::identifyWM(cv::Mat &input_img, Translator &translator) {
           target.conjugate_point2 = target.fan_blade_center.center;
           //continue;
       }
+
+      // 检查轮廓是否为空，并且点数是否足够进行椭圆拟合
+      if (fan_contour.size() < 5) { 
+          if (gp->debug) {
+              std::cout << "[ERROR] Fan contour has " << fan_contour.size() 
+                        << " points, which is less than 5. Cannot fit ellipse. Skipping this target." << std::endl;
+          }
+          target.is_fully_matched = false; // 标记为无效
+          continue; // 直接跳过这个 target 的所有后续处理
+      }
       
       cv::Point fan_center = target.fan_blade_center.center;
       cv::Point r_center = target.r_logo_center.center;
@@ -901,9 +911,9 @@ void TargetTracker::update_history(double time, double new_angle, double new_rot
 //cv::Mat WMIdentify::getRvec() { return this->rvec; }
 //cv::Mat WMIdentify::getTvec() { return this->tvec; }
 
-//cv::Mat WMIdentify::getDist_coeffs() { return this->dist_coeffs; }
+cv::Mat WMIdentify::getDist_coeffs() { return this->dist_coeffs; }
 
-//cv::Mat WMIdentify::getCamera_matrix() { return this->camera_matrix; }
+cv::Mat WMIdentify::getCamera_matrix() { return this->camera_matrix; }
 
 /**
  * @brief 获取角速度列表

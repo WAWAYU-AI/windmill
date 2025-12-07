@@ -15,8 +15,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
 # --- 添加你的宏定义 ---
 add_definitions(-DSHOW_FPS -DDEBUGMODE -DVISUALIZE_PREDICTION -DFYT -DSENDCAMERA)
-# add_definitions(-DVIRTUALGRAB) # 如果用视频，取消这行注释
-# add_definitions(-DNOPORT) # 如果不用串口，取消这行注释
+#add_definitions(-DVIRTUALGRAB) # 如果用视频，取消这行注释
+#add_definitions(-DNOPORT) # 如果不用串口，取消这行注释
 
 # ----------------- 2. 查找所有依赖包 (核心修改) -----------------
 

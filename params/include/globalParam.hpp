@@ -223,10 +223,10 @@ struct GlobalParam
 
     //============================信息管理参数================================//
     int message_hold_threshold = 5;
-    float fake_pitch = 0.0F;
-    float fake_yaw = 0.0F;
+    int fake_pitch = 0;
+    int fake_yaw = 0;
     float fake_bullet_v = 25.0F;
-    uint8_t fake_status = 5;
+    int fake_status = 1;
     float fake_now_time = 0;
     float fake_predict_time = 0;
 
@@ -368,7 +368,7 @@ struct GlobalParam
     int dilationSize_1 = 7;
     int erosionSize = 3;
     int erosionSize_1 = 3;
-    int thresholdValue = 108;
+    int thresholdValue = 30;
     int thresholdValue_1 = 108;
     int thresholdValueBlue = 160;
     int thresholdValueBlue_1 = 160;

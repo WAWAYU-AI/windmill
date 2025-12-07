@@ -11,9 +11,6 @@
 // 前向声明，避免不必要的头文件包含
 class GlobalParam;
 
-// ========================================================================
-// ===                   新增的 TargetTracker 类声明                    ===
-// ========================================================================
 class TargetTracker {
 public:
     int id;                         // 目标的唯一ID
@@ -52,6 +49,7 @@ public:
      * @brief 更新该 tracker 的历史数据队列
      */
     void update_history(double time, double new_angle, double new_rot_angle, GlobalParam& gp);
+
 };
 
 
@@ -130,6 +128,9 @@ public:
     void calculateAngle(cv::Point2f blade_tip, cv::Mat rotation_matrix, cv::Mat tvec); // 注意：这个函数可能需要重构或废弃
     double calculatePhi(cv::Mat rotation_matrix, cv::Mat tvec);
     double calculateAlpha(cv::Mat R_world2cam, cv::Mat tvec, Translator &translator);
+
+    cv::Mat getCamera_matrix();
+    cv::Mat getDist_coeffs();
 };
 
 #endif // __WMIDENTIFY_HPP

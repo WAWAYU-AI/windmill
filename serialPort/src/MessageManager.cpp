@@ -40,7 +40,7 @@ MessageManager::MessageManager(GlobalParam &gp)
     this->now_time = 0;
     this->n_time = 0;
     this->start_time = 0;
-    std::string video_address = "../video/v1.avi";
+    std::string video_address = "../video/output.mp4";
 #ifdef VIRTUALGRAB
     this->capture.open(video_address);
     this->totalFrames = capture.get(cv::CAP_PROP_FRAME_COUNT);

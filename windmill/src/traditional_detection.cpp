@@ -100,6 +100,10 @@ void createTrackbars(GlobalParam &gp) {
   createTrackbar("Length Width Ratio Threshold", WINDOW_NAME,
                  &gp.length_width_ratio_threshold, 10, nullptr);
   createTrackbar("Threshold", WINDOW_NAME, &gp.thresholdValue, 255, nullptr);
+  namedWindow("Simulation Controls", cv::WINDOW_NORMAL);
+  createTrackbar("Fake Pitch", "Simulation Controls", &gp.fake_pitch, 360.0, nullptr);
+  createTrackbar("Fake Yaw", "Simulation Controls", &gp.fake_yaw, 360.0, nullptr);
+  createTrackbar("Fake Status", "Simulation Controls", &gp.fake_status, 10.0, nullptr);
 }
 
 /**

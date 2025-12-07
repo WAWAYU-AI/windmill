@@ -170,7 +170,9 @@ int WMPredict::StartPredict(Translator &translator, GlobalParam &gp,
         this->NewtonDspBigAnyPos(target_tracker.last_detection.world2car_matrix,
                                  translator, gp, 
                                  target_tracker.last_detection.current_angle,
-                                 target_tracker.last_detection.distance);
+                                 target_tracker.last_detection.distance,
+                                 target_tracker.last_detection.pnp_rvec,
+                                 target_tracker.last_detection.pnp_tvec);
         translator.message.armor_flag = 11;
 
     } else { // 小符模式
@@ -185,7 +187,9 @@ int WMPredict::StartPredict(Translator &translator, GlobalParam &gp,
             this->NewtonDspBigAnyPos(target_tracker.last_detection.world2car_matrix,
                                      translator, gp, 
                                      target_tracker.last_detection.current_angle,
-                                     target_tracker.last_detection.distance);
+                                     target_tracker.last_detection.distance,
+                                     target_tracker.last_detection.pnp_rvec,
+                                     target_tracker.last_detection.pnp_tvec);
             translator.message.armor_flag = 11;
         } else {
             std::cout << "小符方向未确定，不预测" << std::endl;
@@ -196,45 +200,58 @@ int WMPredict::StartPredict(Translator &translator, GlobalParam &gp,
 }
 
 /**
- * @brief (已重构) 根据识别模块更新预测器内部状态
+ * @brief (已修正) 根据识别模块更新预测器内部的全局状态
  * @param {WMIdentify} &WMI  传入识别类
- * @return {*}
  */
 void WMPredict::UpdateData(WMIdentify &WMI) {
-    // 这个函数现在变得非常简单，因为它不再需要处理单个目标的姿态信息
-    // 这些信息都封装在 WMIdentify 的 trackers 中
-    
-    // 我们可能仍然需要获取最新的图像用于绘制
+    // 1. 获取最新的、已经画好 PnP 信息的图像，作为我们继续绘制的底板
     this->debugImg = WMI.getImg0();
 
-    // 如果需要判断全局的旋转方向，可以遍历所有 trackers
-    // 但更推荐的做法是让每个 tracker 自己维护方向
-    // 为了简单起见，我们暂时保留一个全局的 clockwise 判断逻辑
-    
+    // 2. 获取全局共享的相机参数
+    //    这些参数对于所有目标都是相同的
+    this->camera_matrix = WMI.getCamera_matrix();
+    this->dist_coeffs = WMI.getDist_coeffs();
+
+    // 3. 更新一些基于跟踪器的状态（例如，全局时间和旋转方向）
     auto& trackers = WMI.getTrackers();
     if (!trackers.empty()) {
-        // 以第一个被跟踪的目标为参考来判断方向
+        // 选择一个“主”跟踪器来更新全局状态（通常是第一个或ID最小的）
+        // 这是一个简化处理，更复杂的系统可能会有更智能的选择逻辑
         const auto& main_tracker = trackers[0]; 
+
+        // a. 更新当前时间戳，以主 tracker 的最新时间为准
+        if (!main_tracker.time_list.empty()) {
+            // 注意：这里获取的是 tracker 内部的相对时间，我们需要的是全局时间
+            // 更好的做法是让 StartPredict 传递 current_time
+            // 为了简单起见，我们假设 WMPredict 内部的 now_time 逻辑是独立的
+            // 或者直接从 WMI 获取最新的全局时间戳
+            // this->now_time = WMI.get_latest_timestamp(); // <--- 假设 WMI 提供了这个接口
+        }
+        
+        // b. 更新全局旋转方向判断
         if (main_tracker.angle_velocity_list.size() >= 20) {
             int positiveCount = 0;
             int negativeCount = 0;
-            for (double vel : main_tracker.angle_velocity_list) {
-                if (vel > 0) positiveCount++;
-                else if (vel < 0) negativeCount++;
+            // 只取最近的20个点来判断
+            auto start_it = main_tracker.angle_velocity_list.end() - 20;
+            for (auto it = start_it; it != main_tracker.angle_velocity_list.end(); ++it) {
+                if (*it > 0.1) positiveCount++;       // 增加一个小的死区
+                else if (*it < -0.1) negativeCount++;
             }
-            if (positiveCount > negativeCount + 5) this->clockwise = 1;
-            else if (negativeCount > positiveCount + 5) this->clockwise = 0;
-        }
-        
-        // 更新当前时间戳，以第一个 tracker 的最新时间为准
-        if (!main_tracker.time_list.empty()) {
-            this->now_time = main_tracker.time_list.back();
+            
+            if (positiveCount > negativeCount + 5) {
+                this->clockwise = 1; // 顺时针
+            } else if (negativeCount > positiveCount + 5) {
+                this->clockwise = 0; // 逆时针
+            }
         }
     }
 }
 
 void WMPredict::NewtonDspSmallAnyPos(cv::Mat world2car, Translator &translator,
-                                     GlobalParam &gp, double R_yaw) {
+                                     GlobalParam &gp, double R_yaw,
+                                    const cv::Mat& rvec,
+                                    const cv::Mat& tvec) {
   double P0 = 12 * pi / 180;
   double fly_t0 = 0.3;
   int n = 0; // 迭代次数
@@ -526,7 +543,9 @@ void WMPredict::NewtonDspSmallAnyPos(cv::Mat world2car, Translator &translator,
 }
 void WMPredict::NewtonDspBigAnyPos(cv::Mat world2car, Translator &translator,
                                    GlobalParam &gp, double R_yaw,
-                                   double R_distance) {
+                                   double R_distance,
+                                   const cv::Mat& rvec, 
+                                   const cv::Mat& tvec) {
   // 开始计时
   is_newton_running = true;
   newton_start_time = std::chrono::high_resolution_clock::now();

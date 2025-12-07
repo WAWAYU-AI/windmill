@@ -116,9 +116,11 @@ public:
   void NewtonDspBig(double theta_0, double alpha, Translator &translator,
                     GlobalParam &gp, double R_yaw);
   void NewtonDspBigAnyPos(cv::Mat world2car, Translator &translator,
-                          GlobalParam &gp, double R_yaw, double R_distance);
+                          GlobalParam &gp, double R_yaw, double R_distance,
+                          const cv::Mat& rvec, const cv::Mat& tvec);
   void NewtonDspSmallAnyPos(cv::Mat world2car, Translator &translator,
-                            GlobalParam &gp, double R_yaw);
+                            GlobalParam &gp, double R_yaw,
+                            const cv::Mat& rvec, const cv::Mat& tvec);
 
   double Estim(double w, double &p1, double &p2, double &p3,
                std::deque<double> x_data, std::deque<double> y_data);
