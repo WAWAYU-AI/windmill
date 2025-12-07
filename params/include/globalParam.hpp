@@ -364,10 +364,10 @@ struct GlobalParam
     int medianBlurSize = 3;
     int medianBlurSize_1 = 3;
     int debug = 0;
-    int dilationSize = 7;
-    int dilationSize_1 = 7;
-    int erosionSize = 3;
-    int erosionSize_1 = 3;
+    int dilationSize = 5;
+    int dilationSize_1 = 5;
+    int erosionSize = 5;
+    int erosionSize_1 = 5;
     int thresholdValue = 30;
     int thresholdValue_1 = 108;
     int thresholdValueBlue = 160;

@@ -513,7 +513,7 @@ std::vector<WindmillTarget> WMIdentify::group_targets(const KeyPoints& all_parts
             }
 
             // 检查是否所有关键部件都已匹配
-            new_target.is_fully_matched = (rect_found && r_logo_found);
+            //new_target.is_fully_matched = (rect_found && r_logo_found);
             
             if (gp->debug) {
                 std::cout << "[GROUPING] For Fan at " << new_target.fan_blade_center.center << ":" << std::endl;
@@ -528,6 +528,43 @@ std::vector<WindmillTarget> WMIdentify::group_targets(const KeyPoints& all_parts
                      std::cout << "  - FAILED to match a close R-Logo (Min Dist: " << min_dist_r << ")" << std::endl;
                 }
                 std::cout << "  - Final is_fully_matched: " << (new_target.is_fully_matched ? "true" : "false") << std::endl;
+            }
+
+            // 只有在基础的距离匹配成功后，才进行几何校验
+            if (rect_found && r_logo_found) {
+                new_target.light_bar = *best_rect_it;
+                new_target.r_logo_center = *best_r_it;
+                
+                cv::Point2f fan_p = cv::Point2f(new_target.fan_blade_center.center);
+                cv::Point2f r_p = cv::Point2f(new_target.r_logo_center.center);
+                cv::Point2f rect_p = new_target.light_bar.center;
+
+                // 向量A: 灯条 -> R标
+                cv::Point2f vec_Rect_R = r_p - rect_p;
+                // 向量B: 灯条 -> 扇叶
+                cv::Point2f vec_Rect_Fan = fan_p - rect_p;
+
+                // 计算点积。如果共线且灯条在中间，点积应为负数。
+                double dot_product = vec_Rect_R.dot(vec_Rect_Fan);
+                
+                bool geometry_ok = false;
+                if (dot_product < 0) { // 检查夹角是否大于90度
+                    // (可选) 更严格的检查：计算夹角余弦值
+                    double norm_A = cv::norm(vec_Rect_R);
+                    double norm_B = cv::norm(vec_Rect_Fan);
+                    if (norm_A > 1e-5 && norm_B > 1e-5) {
+                        double cos_theta = dot_product / (norm_A * norm_B);
+                        // 要求夹角大于 155 度 (cos(155) ≈ -0.906)
+                        if (cos_theta < -0.90) {
+                            geometry_ok = true;
+                        }
+                    }
+                }
+              
+                new_target.is_fully_matched = geometry_ok;
+
+            } else {
+                 new_target.is_fully_matched = false;
             }
 
             // 无论是否完全匹配，都将初步结果加入列表，让后续逻辑决定如何处理

@@ -135,9 +135,9 @@ cv::Mat preprocess(const cv::Mat &inputImage, GlobalParam &gp, int is_blue, Tran
   }
 
   // === 在这里添加可视化 1 ===
-  if (gp.debug) {
-    cv::imshow("1_Channel_Subtraction", subtracted_img);
-  }
+// if (gp.debug) {
+//    cv::imshow("1_Channel_Subtraction", subtracted_img);
+//  }
   // ==========================
 
   // --- Step 2: Thresholding ---
@@ -157,9 +157,9 @@ cv::Mat preprocess(const cv::Mat &inputImage, GlobalParam &gp, int is_blue, Tran
   }
 
   // === 在这里添加可视化 2 ===
-  if (gp.debug) {
-    cv::imshow("2_After_Threshold", threshold_mask);
-  }
+//  if (gp.debug) {
+//    cv::imshow("2_After_Threshold", threshold_mask);
+//  }
   // ==========================
 
   // --- Step 3: Median Blur ---
@@ -179,9 +179,9 @@ cv::Mat preprocess(const cv::Mat &inputImage, GlobalParam &gp, int is_blue, Tran
   
   // === 在这里添加可视化 3 ===
   // (Note: This step is often subtle, you might not see much change)
-  if (gp.debug) {
-      cv::imshow("3_After_Blur", blurred_mask);
-  }
+//  if (gp.debug) {
+//      cv::imshow("3_After_Blur", blurred_mask);
+//  }
   // ==========================
 
 
