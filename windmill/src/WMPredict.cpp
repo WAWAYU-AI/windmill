@@ -531,9 +531,6 @@ void WMPredict::NewtonDspBigAnyPos(cv::Mat world2car, Translator &translator,
   is_newton_running = true;
   newton_start_time = std::chrono::high_resolution_clock::now();
 
-  translator.message.yaw = 0;
-  translator.message.pitch = 0;
-
   double P0 = 12 * pi / 180;
   double fly_t0 = 0.3;
   int n = 0; // 迭代次数
