@@ -1,0 +1,18 @@
+%YAML:1.0
+---
+cost_threshold: 1800.
+max_lost_frame: 15.
+s2qxyz: 450.
+s2qyaw: 2.0000000000000000e-03
+s2qr: 300.
+r_xy_factor: 3.0000000000000004e-05
+r_z: 1.0000000000000000e-03
+r_yaw: 5.
+s2p0xyr: 1000.
+s2p0yaw: 50.
+r_initial: 250.
+small_armor_a: 6.7500000000000000e+01
+small_armor_b: 2.8500000000000000e+01
+big_armor_a: 1.1250000000000000e+02
+big_armor_b: 2.8500000000000000e+01
+resize: 5.0000000000000000e-01

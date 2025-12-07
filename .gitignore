@@ -1,0 +1,17 @@
+# cmake
+build
+
+# vscode
+.vscode/*
+.cache/*
+# log
+log
+MvSdkLog
+
+# video
+video/result/*
+video/source/*
+video/record/*
+
+# yaml
+# config/*.yaml

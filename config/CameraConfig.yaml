@@ -1,0 +1,29 @@
+%YAML:1.0
+---
+cam_index: 0
+enable_auto_exp: 0
+energy_exp_time: 950.
+blue_exp_time: 800.
+red_exp_time: 1000.
+r_balance: 3600
+g_balance: 1024
+b_balance: 1957
+enable_auto_gain: 0
+gain: 1.6899999618530273e+01
+gamma_value: 6.9999998807907104e-01
+trigger_activation: 0
+frame_rate: 180.
+enable_trigger: 0
+trigger_source: 0
+cx: 6.2070829400000002e+02
+cy: 4.3853413799999998e+02
+fx: 2.2848456000000001e+03
+fy: 2.2937699899999998e+03
+k1: -1.1107890000000000e-02
+k2: -7.3340558000000000e-01
+k3: 4.5045779200000000e+00
+p1: -1.1118180000000000e-02
+p2: -8.0313899999999994e-03
+vector_x: 79.68
+vector_y: -59
+vector_z: 60

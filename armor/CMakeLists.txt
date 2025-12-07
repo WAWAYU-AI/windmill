@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.0.0)
+project(armor VERSION 0.1.0)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS} -std=c++14 -pthread")
+include_directories(include)
+aux_source_directory(./src ALL_SRCS)
+add_library(armor STATIC ${ALL_SRCS})
+target_link_libraries(armor params)
