@@ -201,3 +201,7 @@ int SerialPort::ReceiveFd()
 {
     return this->fd;
 }
+
+SerialPort::~SerialPort() {
+    // Empty destructor
+}

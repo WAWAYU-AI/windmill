@@ -209,7 +209,7 @@ void *OperationFunction(void *arg)
         } else {
             // --- 自瞄（打装甲板）模式 ---
             WMI.clear(); // 进入自瞄时，清空所有能量机关的跟踪器
-            aim.auto_aim(pic, translator); // (假设 auto_aim 接口不需要 dt)
+            aim.auto_aim(pic, translator, 0.016);
             MManager.write(translator, *serialPort);
         }
 

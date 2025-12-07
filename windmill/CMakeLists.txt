@@ -29,9 +29,7 @@ endif()
 
 
 
-# 定义可执行文件，并列出所有需要编译的源文件
-add_executable(windmill_detector
-    src/main.cpp
+add_library(windmill STATIC
     src/WMIdentify.cpp
     src/WMPredict.cpp
     src/traditional_detection.cpp
@@ -39,8 +37,8 @@ add_executable(windmill_detector
     src/globalParam.cpp
 )
 
-# 目标 (windmill_detector) 添加头文件搜索路径
-target_include_directories(windmill_detector PUBLIC
+# 目标 (windmill) 添加头文件搜索路径
+target_include_directories(windmill PUBLIC
     # 项目内部的 include 目录
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 
@@ -53,7 +51,7 @@ target_include_directories(windmill_detector PUBLIC
 
 
 # 将可执行文件链接到所有需要的库
-target_link_libraries(windmill_detector PUBLIC
+target_link_libraries(windmill PUBLIC
     # 链接 OpenCV 库
     ${OpenCV_LIBS}
 
