@@ -82,6 +82,9 @@ const string WINDOW_NAME = "Parameter Controls";
 
 // int minContourArea = 200; // 最小轮廓面积
 
+int fake_pitch_scaled = 360; // 对应 0 度
+int fake_yaw_scaled = 360;   // 对应 0 度
+
 void createTrackbars(GlobalParam &gp) {
   namedWindow(WINDOW_NAME, WINDOW_NORMAL);
   moveWindow(WINDOW_NAME, 0, 0);
@@ -101,8 +104,8 @@ void createTrackbars(GlobalParam &gp) {
                  &gp.length_width_ratio_threshold, 10, nullptr);
   createTrackbar("Threshold", WINDOW_NAME, &gp.thresholdValue, 255, nullptr);
   namedWindow("Simulation Controls", cv::WINDOW_NORMAL);
-  createTrackbar("Fake Pitch", "Simulation Controls", &gp.fake_pitch, 360.0, nullptr);
-  createTrackbar("Fake Yaw", "Simulation Controls", &gp.fake_yaw, 360.0, nullptr);
+  createTrackbar("Fake Pitch x10", "Simulation Controls", &fake_pitch_scaled, 720, nullptr);
+  createTrackbar("Fake Yaw x10", "Simulation Controls", &fake_yaw_scaled, 720, nullptr);
   createTrackbar("Fake Status", "Simulation Controls", &gp.fake_status, 10.0, nullptr);
 }
 

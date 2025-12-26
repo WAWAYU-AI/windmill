@@ -130,6 +130,7 @@ void *OperationFunction(void *arg)
 
     double dt = 0;
     double last_time_stamp = 0;
+    bool was_in_windmill_mode_last_frame = false; // 用于模式切换检测
 
 #ifndef VIRTUALGRAB
     camera.init();
@@ -141,7 +142,7 @@ void *OperationFunction(void *arg)
 #endif
 #ifdef DEBUGMODE
     int key = 0;
-    int debug_t = 33;
+    int debug_t = 33; // 默认播放延时(ms), 约30fps
     bool is_paused = false;
 #endif
 
@@ -152,19 +153,21 @@ void *OperationFunction(void *arg)
             auto t1 = std::chrono::high_resolution_clock::now();
 
 #ifdef RECORDVIDEO
-            if(!pic.empty()) cv::resize(pic, pic, cv::Size(600, 450));
-            cnt ++;
-            if (cnt > RECORD_FRAME_COUNT && idx <= 50)
-            {
-                cnt = 0;
-                if(recorder != NULL){
-                    recorder->release();
-                    delete recorder;
+            if(!pic.empty()) { // 确保 pic 非空
+                cv::Mat record_frame = pic.clone();
+                cv::resize(record_frame, record_frame, cv::Size(600, 450));
+                cnt++;
+                if (cnt > RECORD_FRAME_COUNT && idx <= 50) {
+                    cnt = 0;
+                    if(recorder != NULL){
+                        recorder->release();
+                        delete recorder;
+                    }
+                    idx++;
+                    recorder = new cv::VideoWriter(path + std::to_string(idx) + ".mp4", coder, 60.0, cv::Size(600, 450), true);
                 }
-                idx ++;
-                recorder = new cv::VideoWriter(path + std::to_string(idx) + ".mp4", coder, 60.0, cv::Size(600, 450), true);
+                if(idx <= 50 && recorder != NULL) recorder->write(record_frame);
             }
-            if(!pic.empty() && idx <= 50) recorder->write(pic);
 #endif
             
 #ifndef NOPORT
@@ -175,6 +178,13 @@ void *OperationFunction(void *arg)
             
             bool is_windmill_mode = (translator.message.status % 5 != 0 && translator.message.status % 5 != 2);
             
+#ifdef DEBUGMODE
+            if(gp.debug){
+                std::cout << "Received Status: " << static_cast<int>(translator.message.status) 
+                          << ", Is Windmill Mode: " << (is_windmill_mode ? "YES" : "NO") << std::endl;
+            }
+#endif
+
             if (is_windmill_mode) {
 #ifndef VIRTUALGRAB
                 camera.change_attack_mode(ENERGY, gp);
@@ -203,10 +213,12 @@ void *OperationFunction(void *arg)
 
             if (pic.empty()){
                 empty_frame_count++;
-                if (empty_frame_count > 5) {
+                if (gp.debug) printf("[DEBUG] get_pic returned an empty frame! Count: %d\n", empty_frame_count);
+                if (empty_frame_count > 10) {
                     printf("Camera disconnected or video ended.\n");
                     exit(0);
                 }
+                usleep(100000);
                 continue;
             } else {
                 empty_frame_count = 0;
@@ -219,14 +231,17 @@ void *OperationFunction(void *arg)
                 WMIPRE.StartPredict(translator, gp, WMI);
                 MManager.write(translator, *serialPort);
             } else {
-                WMI.clear();
+                if (was_in_windmill_mode_last_frame) {
+                    WMI.clear(); // 仅在从打符切换到自瞄时清空一次
+                }
+                
                 double time_stamp = std::chrono::duration<double>(
                     std::chrono::high_resolution_clock::now().time_since_epoch()
                 ).count();
                 
                 if (last_time_stamp == 0) {
                     last_time_stamp = time_stamp;
-                    dt = 0.016; // 赋一个默认值以避免第一次dt过大
+                    dt = 0.016;
                 } else {
                     dt = time_stamp - last_time_stamp;
                 }
@@ -236,33 +251,39 @@ void *OperationFunction(void *arg)
                 aim.auto_aim(pic, translator, dt);
                 MManager.write(translator, *serialPort);
             }
+
+            // 在循环末尾更新上一帧的状态
+            was_in_windmill_mode_last_frame = is_windmill_mode;
+
         } // is_paused 逻辑块结束
 
         // --- 调试与可视化（无论是否暂停都执行） ---
 #ifdef DEBUGMODE
-        cv::Mat final_image_to_show = WMIPRE.GetDebugImg();
-        if (final_image_to_show.empty()) {
-            final_image_to_show = pic; // 如果预测模块没图，就显示当前原图
+        cv::Mat final_image_to_show;
+        if (is_paused && !WMIPRE.GetDebugImg().empty()) {
+            final_image_to_show = WMIPRE.GetDebugImg();
+        } else if (!pic.empty()) {
+            final_image_to_show = WMIPRE.GetDebugImg().empty() ? pic : WMIPRE.GetDebugImg();
         }
-        
+
         if (!final_image_to_show.empty()) {
             UI.receive_pic(final_image_to_show);
             UI.windowsManager(key, debug_t);
         }
         
-        // 统一的按键控制
-        int key = cv::waitKey(is_paused ? 0 : debug_t); // 暂停时无限等待，否则等待33ms (约30fps)
+        int wait_time = is_paused ? 0 : debug_t;
+        key = cv::waitKey(wait_time); 
         
         if (key == ' ') {
-            is_paused = !is_paused; // 切换暂停状态
+            is_paused = !is_paused;
         } else if (key == 27 || key == 'q') {
-            exit(0); // 退出程序
+            exit(0);
         }
 #endif
 
         // --- 帧率计算 ---
 #ifdef SHOW_FPS
-        if (!is_paused) { // 只在非暂停时计算FPS
+        if (!is_paused) {
             frame_count++;
             auto now_time = std::chrono::high_resolution_clock::now();
             auto time_diff_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now_time - fps_time_stamp).count();
@@ -274,7 +295,6 @@ void *OperationFunction(void *arg)
                 fps_time_stamp = now_time;
             }
         } else {
-             // 暂停时重置FPS计时器，防止恢复播放时FPS计算错误
              fps_time_stamp = std::chrono::high_resolution_clock::now();
         }
 #endif
