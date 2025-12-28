@@ -170,14 +170,81 @@ void *OperationFunction(void *arg)
             }
 #endif
             
-#ifndef NOPORT
-            MManager.copy(temp, translator);
-#else
-            MManager.FakeMessage(translator); 
-#endif       
+            // ====================================================================
+            // ===                核心修改在这里 (真实角度 + 虚假 status)             ===
+            // ====================================================================
             
+            // 1. 从 ReadFunction 线程获取包含真实云台角度和真实status的最新数据
+            MManager.copy(temp, translator);
+            
+            // 2. 手动覆盖 status 字段，使用 gp->fake_status
+            //    这允许我们通过滑动条来实时控制模式
+            translator.message.status = gp.fake_status; 
+            
+            // ====================================================================
+
             bool is_windmill_mode = (translator.message.status % 5 != 0 && translator.message.status % 5 != 2);
             
+            if (gp.debug) {
+                std::cout << "Mode Status (Fake): " << static_cast<int>(translator.message.status) 
+                          << ", Real Yaw: " << translator.message.yaw * 180 / 3.14159
+                          << ", Real Pitch: " << translator.message.pitch * 180 / 3.14159
+                          << std::endl;
+            }
+            
+            if (is_windmill_mode) {
+#ifndef VIRTUALGRAB
+                camera.change_attack_mode(ENERGY, gp);
+#endif
+                gp.attack_mode = ENERGY;
+            } else {
+#ifndef VIRTUALGRAB
+                camera.change_attack_mode(ARMOR, gp);
+#endif
+                gp.attack_mode = ARMOR;
+            }
+
+            // 颜色切换逻辑，现在它会根据我们虚假的 status 来判断
+            int current_color = translator.message.status / 5;
+            if (current_color != gp.color) {
+                gp.initGlobalParam(current_color);
+            }
+
+            // --- 获取真实相机图像 ---
+            camera.set_param_mult(gp);
+            camera.get_pic(&pic, gp);
+
+            if (pic.empty()){
+                // ... (empty frame handling)
+                continue;
+            } else {
+                empty_frame_count = 0;
+            }
+
+            if (translator.message.status == 99) abort();
+
+            if (is_windmill_mode) {
+                WMI.identifyWM(pic, translator);
+                WMIPRE.StartPredict(translator, gp, WMI);
+                MManager.write(translator, *serialPort);
+            } else {
+                if (was_in_windmill_mode_last_frame) {
+                    WMI.clear();
+                }
+                
+                double time_stamp = std::chrono::duration<double>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+                if (last_time_stamp == 0) { last_time_stamp = time_stamp; dt = 0.016; } 
+                else { dt = time_stamp - last_time_stamp; }
+                translator.message.latency = dt * 1000;
+                last_time_stamp = time_stamp;
+                
+                aim.auto_aim(pic, translator, dt);
+                MManager.write(translator, *serialPort);
+            }
+
+            was_in_windmill_mode_last_frame = is_windmill_mode;
+
+        } // is_paused 逻辑块结束 
 #ifdef DEBUGMODE
             if(gp.debug){
                 std::cout << "Received Status: " << static_cast<int>(translator.message.status) 
