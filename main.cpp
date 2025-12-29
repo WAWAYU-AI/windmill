@@ -153,7 +153,8 @@ void *OperationFunction(void *arg)
             auto t1 = std::chrono::high_resolution_clock::now();
 
 #ifdef RECORDVIDEO
-            if(!pic.empty()) { // 确保 pic 非空
+            // 在确认 pic 非空之后再操作，避免对空 Mat 操作
+            if(!pic.empty()) { 
                 cv::Mat record_frame = pic.clone();
                 cv::resize(record_frame, record_frame, cv::Size(600, 450));
                 cnt++;
@@ -162,6 +163,7 @@ void *OperationFunction(void *arg)
                     if(recorder != NULL){
                         recorder->release();
                         delete recorder;
+                        recorder = NULL; // 指向空指针，防止野指针
                     }
                     idx++;
                     recorder = new cv::VideoWriter(path + std::to_string(idx) + ".mp4", coder, 60.0, cv::Size(600, 450), true);
@@ -170,28 +172,27 @@ void *OperationFunction(void *arg)
             }
 #endif
             
-            // ====================================================================
-            // ===                核心修改在这里 (真实角度 + 虚假 status)             ===
-            // ====================================================================
-            
-            // 1. 从 ReadFunction 线程获取包含真实云台角度和真实status的最新数据
+            // --- 获取数据并覆盖 status ---
+#ifndef NOPORT
             MManager.copy(temp, translator);
-            
-            // 2. 手动覆盖 status 字段，使用 gp->fake_status
-            //    这允许我们通过滑动条来实时控制模式
+            // 手动覆盖 status，使用 gp->fake_status (由滑动条控制)
             translator.message.status = gp.fake_status; 
+#else
+            MManager.FakeMessage(translator); 
+#endif       
             
-            // ====================================================================
-
             bool is_windmill_mode = (translator.message.status % 5 != 0 && translator.message.status % 5 != 2);
             
+            // --- 统一打印 Status 信息 ---
             if (gp.debug) {
-                std::cout << "Mode Status (Fake): " << static_cast<int>(translator.message.status) 
+                std::cout << "Mode Status (Fake/Real): " << static_cast<int>(translator.message.status) 
+                          << ", Is Windmill Mode: " << (is_windmill_mode ? "YES" : "NO") 
                           << ", Real Yaw: " << translator.message.yaw * 180 / 3.14159
                           << ", Real Pitch: " << translator.message.pitch * 180 / 3.14159
                           << std::endl;
             }
             
+            // --- 模式与相机参数设置 ---
             if (is_windmill_mode) {
 #ifndef VIRTUALGRAB
                 camera.change_attack_mode(ENERGY, gp);
@@ -204,66 +205,7 @@ void *OperationFunction(void *arg)
                 gp.attack_mode = ARMOR;
             }
 
-            // 颜色切换逻辑，现在它会根据我们虚假的 status 来判断
-            int current_color = translator.message.status / 5;
-            if (current_color != gp.color) {
-                gp.initGlobalParam(current_color);
-            }
-
-            // --- 获取真实相机图像 ---
-            camera.set_param_mult(gp);
-            camera.get_pic(&pic, gp);
-
-            if (pic.empty()){
-                // ... (empty frame handling)
-                continue;
-            } else {
-                empty_frame_count = 0;
-            }
-
-            if (translator.message.status == 99) abort();
-
-            if (is_windmill_mode) {
-                WMI.identifyWM(pic, translator);
-                WMIPRE.StartPredict(translator, gp, WMI);
-                MManager.write(translator, *serialPort);
-            } else {
-                if (was_in_windmill_mode_last_frame) {
-                    WMI.clear();
-                }
-                
-                double time_stamp = std::chrono::duration<double>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-                if (last_time_stamp == 0) { last_time_stamp = time_stamp; dt = 0.016; } 
-                else { dt = time_stamp - last_time_stamp; }
-                translator.message.latency = dt * 1000;
-                last_time_stamp = time_stamp;
-                
-                aim.auto_aim(pic, translator, dt);
-                MManager.write(translator, *serialPort);
-            }
-
-            was_in_windmill_mode_last_frame = is_windmill_mode;
-
-        } // is_paused 逻辑块结束 
-#ifdef DEBUGMODE
-            if(gp.debug){
-                std::cout << "Received Status: " << static_cast<int>(translator.message.status) 
-                          << ", Is Windmill Mode: " << (is_windmill_mode ? "YES" : "NO") << std::endl;
-            }
-#endif
-
-            if (is_windmill_mode) {
-#ifndef VIRTUALGRAB
-                camera.change_attack_mode(ENERGY, gp);
-#endif
-                gp.attack_mode = ENERGY;
-            } else {
-#ifndef VIRTUALGRAB
-                camera.change_attack_mode(ARMOR, gp);
-#endif
-                gp.attack_mode = ARMOR;
-            }
-
+            // 颜色切换逻辑 (仅在真实串口模式下)
 #ifndef NOPORT
             int current_color = translator.message.status / 5;
             if (current_color != gp.color) {
@@ -271,6 +213,7 @@ void *OperationFunction(void *arg)
             }
 #endif
 
+            // --- 获取图像 ---
 #ifndef VIRTUALGRAB
             camera.set_param_mult(gp);
             camera.get_pic(&pic, gp);
@@ -285,13 +228,14 @@ void *OperationFunction(void *arg)
                     printf("Camera disconnected or video ended.\n");
                     exit(0);
                 }
-                usleep(100000);
+                usleep(100000); // 图像为空时等待一下，避免CPU空转
                 continue;
             } else {
                 empty_frame_count = 0;
             }
 
-            if (translator.message.status == 99) abort();
+            // --- 核心逻辑分支 ---
+            if (translator.message.status == 99) abort(); // 紧急停止
 
             if (is_windmill_mode) {
                 WMI.identifyWM(pic, translator);
@@ -306,11 +250,11 @@ void *OperationFunction(void *arg)
                     std::chrono::high_resolution_clock::now().time_since_epoch()
                 ).count();
                 
-                if (last_time_stamp == 0) {
-                    last_time_stamp = time_stamp;
-                    dt = 0.016;
-                } else {
-                    dt = time_stamp - last_time_stamp;
+                if (last_time_stamp == 0) { 
+                    last_time_stamp = time_stamp; 
+                    dt = 0.016; // 赋一个默认值以避免第一次dt过大
+                } else { 
+                    dt = time_stamp - last_time_stamp; 
                 }
                 translator.message.latency = dt * 1000;
                 last_time_stamp = time_stamp;
