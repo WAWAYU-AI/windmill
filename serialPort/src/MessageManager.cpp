@@ -115,8 +115,8 @@ void MessageManager::read(Translator &ts, SerialPort &serialPort)
 
         if (len == 64)
         {
+            printf("[DEBUG in read] Yaw: %f, Pitch: %f\n", ts.message.yaw, ts.message.pitch);
             usleep(100);
-
             break;
         }
 #ifdef THREADANALYSIS
